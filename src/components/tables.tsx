@@ -12,7 +12,7 @@ export function SliceTable({
 }) {
   return (
     <div className="overflow-clip rounded-md">
-      <div className="grid grid-cols-5 items-center justify-items-center bg-cyan-900 p-2 text-cyan-300">
+      <div className="grid grid-cols-5 items-center justify-items-center bg-fuchsia-900 p-2 text-white">
         <div>Name</div>
         <div>Value</div>
         <div className="flex flex-col items-center">
@@ -35,7 +35,7 @@ export function SliceTable({
       </div>
       {slices.map((slice) => (
         <div
-          className="grid grid-cols-5 items-center justify-items-center bg-cyan-950 p-1 text-cyan-100"
+          className="grid grid-cols-5 items-center justify-items-center bg-gray-900 p-1 text-white"
           key={slice.symbol}
         >
           <div>{slice.symbol}</div>
@@ -58,7 +58,7 @@ export function SliceTable({
 export function TransactionTable({ values }: { values: Transaction[] }) {
   return (
     <div className="overflow-clip rounded-md">
-      <div className="grid grid-cols-3 items-center justify-items-center rounded-t-md bg-cyan-900 p-2 text-cyan-300">
+      <div className="grid grid-cols-3 items-center justify-items-center rounded-t-md bg-fuchsia-900 p-2 text-white">
         <div>Name</div>
         <div>Date</div>
         <div>Value</div>
@@ -66,7 +66,7 @@ export function TransactionTable({ values }: { values: Transaction[] }) {
       {values.map((t) => (
         <div
           key={`${t.symbol}-${t.date.toLocaleDateString()}-${t.value}`}
-          className="grid grid-cols-3 items-center justify-items-center bg-cyan-950 p-1 text-cyan-100"
+          className="grid grid-cols-3 items-center justify-items-center bg-gray-900 p-1 text-white"
         >
           <div>{t.symbol}</div>
           <div>{t.date.toDateString()}</div>

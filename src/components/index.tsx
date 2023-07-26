@@ -8,7 +8,6 @@ import { Money, ColorMoney, ColorPercent } from "./money";
 import { PieChart, TimeSeriesChart } from "./charts";
 import LoadingDots from "./LoadingDots";
 import { useTransactions } from "./useTransactions";
-import Dialog from "./dialog";
 
 export function Gain(value: number, cost: number) {
   return value - cost;
@@ -306,7 +305,6 @@ export default function C1() {
         <div className="col-span-2 sm:col-span-3">
           <div className="flex items-end gap-2">
             <h1 className="text-2xl font-bold text-white">Portfolio</h1>
-            <Dialog />
             <input
               type="file"
               onChange={handleImport}
@@ -314,7 +312,7 @@ export default function C1() {
               hidden
             />
             <button
-              className="rounded-md bg-cyan-800 px-2 py-1 text-white hover:bg-cyan-700"
+              className="rounded-md bg-fuchsia-700 px-2 py-1 text-white hover:bg-fuchsia-500"
               onClick={handleUploadButtonClick}
             >
               Import
@@ -353,10 +351,10 @@ export default function C1() {
             value={<ColorMoney value={0} />}
           />
         </div>
-        <div className="aspect-square self-center rounded-md bg-gray-700 p-2">
+        <div className="aspect-square self-center rounded-md bg-gray-900 p-2">
           {isLoading ? <LoadingDots /> : <PieChart slices={slices} />}
         </div>
-        <div className="col-span-2 rounded-md bg-gray-800 p-2 text-xl font-bold">
+        <div className="col-span-2 rounded-md bg-gray-900 p-2 text-xl font-bold">
           {isLoading ? (
             <LoadingDots />
           ) : (

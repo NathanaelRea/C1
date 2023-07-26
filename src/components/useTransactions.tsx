@@ -153,7 +153,7 @@ const defaultData: StorageTransaction[] = [
   {
     asset: "SOL",
     type: "Buy",
-    quantity: 10,
+    quantity: 30,
     totalPrice: -1,
     timeStamp: new Date("2023-01-01"),
   },

@@ -67,7 +67,7 @@ export function TimeSeriesChart({
   ]);
 
   // TODO fix
-  const xScaleasdfasdf = useMemo(
+  const xScaleMemo = useMemo(
     () =>
       data == null
         ? null
@@ -77,7 +77,7 @@ export function TimeSeriesChart({
             .range([0, dimensions.width]),
     [data, dimensions]
   );
-  const yScaleasdfasdf = useMemo(
+  const yScaleMemo = useMemo(
     () =>
       data == null
         ? null
@@ -90,21 +90,21 @@ export function TimeSeriesChart({
 
   const handleMouseMove = useCallback(
     (event: React.MouseEvent) => {
-      if (data == null || xScaleasdfasdf == null) {
+      if (data == null || xScaleMemo == null) {
         setHighlighted(null);
         setMousePosition(null);
         return;
       }
 
+      const { offsetX, offsetY } = event.nativeEvent;
       const bisect = d3.bisector((d: CoinbaseTransaction) => d.timestamp);
-      const { offsetX: mouseX, offsetY: mouseY } = event.nativeEvent;
-      const xValue = xScaleasdfasdf.invert(mouseX);
-      const index = bisect.left(data, xValue, 0);
+      const xValue = xScaleMemo.invert(offsetX);
+      const index = bisect.center(data, xValue, 0);
 
       setHighlighted(index);
-      setMousePosition([mouseX, mouseY]);
+      setMousePosition([offsetX, offsetY]);
     },
-    [data, xScaleasdfasdf]
+    [data, xScaleMemo]
   );
 
   const handleMouseLeave = () => {
@@ -119,18 +119,18 @@ export function TimeSeriesChart({
 
   return (
     <div className="relative h-full w-full overflow-hidden">
-      <svg ref={chartRef} className="h-full w-full" />
+      <svg ref={chartRef} className="h-full w-full cursor-pointer" />
       <AnimatePresence>
         {data != null && mousePosition != null && curData != null && (
           <>
             <motion.div
-              className={`pointer-events-none absolute top-0 h-full bg-white`}
+              className={`absolute top-0 h-full bg-white`}
               style={{ width: rectWidth }}
               initial={{ opacity: 0 }}
               animate={{
                 opacity: 0.25,
-                left: xScaleasdfasdf
-                  ? xScaleasdfasdf(curData.timestamp) - rectWidth / 2
+                left: xScaleMemo
+                  ? xScaleMemo(curData.timestamp) - rectWidth / 2
                   : 0,
               }}
               exit={{
@@ -142,16 +142,16 @@ export function TimeSeriesChart({
               }}
             />
             <motion.div
-              className={`pointer-events-none absolute z-10 rounded-full bg-white`}
+              className={`absolute z-10 rounded-full bg-white`}
               style={{ width: circleDiameter, height: circleDiameter }}
               initial={{ opacity: 0 }}
               animate={{
                 opacity: 1,
-                left: xScaleasdfasdf
-                  ? xScaleasdfasdf(curData.timestamp) - circleDiameter / 2
+                left: xScaleMemo
+                  ? xScaleMemo(curData.timestamp) - circleDiameter / 2
                   : 0,
-                top: yScaleasdfasdf
-                  ? yScaleasdfasdf(curData.value) - circleDiameter / 2
+                top: yScaleMemo
+                  ? yScaleMemo(curData.value) - circleDiameter / 2
                   : 0,
               }}
               exit={{
@@ -160,7 +160,7 @@ export function TimeSeriesChart({
               transition={{ duration: 0 }}
             />
             <motion.div
-              className="pointer-events-none absolute left-0 top-0"
+              className="absolute left-0 top-0"
               initial={{ opacity: 0, y: "-100%" }}
               animate={{
                 opacity: 1,
@@ -265,7 +265,8 @@ export function PieChart({ slices }: { slices: Slice[] }) {
       .attr(
         "transform",
         `translate(${dimensions.width / 2}, ${dimensions.height / 2})`
-      );
+      )
+      .style("cursor", "pointer");
 
     const paths = chart
       .selectAll("path")

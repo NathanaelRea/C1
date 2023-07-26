@@ -69,7 +69,7 @@ export function TransactionTable({ values }: { values: Transaction[] }) {
           className="grid grid-cols-3 items-center justify-items-center bg-gray-900 p-1 text-white"
         >
           <div>{t.symbol}</div>
-          <div>{t.date.toDateString()}</div>
+          <div>{t.date.toLocaleDateString()}</div>
           <div>{t.value}</div>
         </div>
       ))}

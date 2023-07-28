@@ -13,7 +13,7 @@ import {
   ArrowsPointingInIcon,
   ArrowsPointingOutIcon,
 } from "@heroicons/react/24/solid";
-import { type Slice, type CoinbaseTransaction, type Asset } from ".";
+import { type CoinbaseTransaction, type Asset } from ".";
 import { addDays } from "date-fns";
 
 interface Data {
@@ -232,7 +232,13 @@ export function TimeSeriesChart({ assets }: { assets: Asset[] }) {
   );
 }
 
-export function PieChart({ slices }: { slices: Slice[] }) {
+export function PieChart({
+  assets,
+  sumTotalValue,
+}: {
+  assets: Asset[];
+  sumTotalValue: number;
+}) {
   const chartRef = useRef<SVGSVGElement>(null);
   const [highlighted, setHighlighted] = useState<number | null>(null);
   const { dimensions } = useBoundingRect(chartRef);
@@ -243,14 +249,17 @@ export function PieChart({ slices }: { slices: Slice[] }) {
   const maxRadius = maxDiameter / 2;
   const radiusDelta = maxRadius - minRadius;
 
-  const data = slices.map((s) => {
-    return {
-      label: s.symbol,
-      value: s.actualPercent,
-    };
-  });
-  const targetPercent = slices.reduce((acc: TargetPercent, val) => {
-    acc[val.symbol] = val.targetPercent;
+  const data = assets
+    .map((a) => {
+      return {
+        label: a.symbol,
+        value: a.totalValue / sumTotalValue,
+      };
+    })
+    .sort((a, b) => b.value - a.value);
+
+  const targetPercent = assets.reduce((acc: TargetPercent, val) => {
+    acc[val.symbol] = val.percentTarget;
     return acc;
   }, {} as Record<string, number>);
 

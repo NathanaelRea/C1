@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { Indicator } from "./indicator";
 import { SliceTable, TransactionTable } from "./tables";
 import { Money, ColorMoney, ColorPercent } from "./money";
@@ -8,6 +8,7 @@ import { useTransactions } from "./useTransactions";
 import Coinbase from "../assets/coinbase.favicon.ico";
 import Image from "next/image";
 import { useCalculate } from "~/hooks/useCalculate";
+import { Gain, Return } from "~/lib/util";
 
 export interface TimeSeriesData {
   date: Date;
@@ -52,16 +53,7 @@ export interface Transaction {
   symbol: string;
 }
 
-export function Gain(value: number, cost: number) {
-  return value - cost;
-}
-
-export function Return(value: number, cost: number) {
-  return cost == 0 ? 0 : (value - cost) / cost;
-}
-
 export default function C1() {
-  const [nextAlloc, setNextAlloc] = useState(250);
   const { transactions, handleImport } = useTransactions();
 
   const { assets, sumTotalCost, sumTotalValue, isLoading } =
@@ -71,37 +63,6 @@ export default function C1() {
   const handleUploadButtonClick = () => {
     fileInputRef.current?.click();
   };
-
-  const handleUpdateNextAlloc = (e: React.ChangeEvent<HTMLInputElement>) =>
-    setNextAlloc(
-      isNaN(parseInt(e.target.value)) ? 0 : parseInt(e.target.value)
-    );
-  const sumAllocation = assets.reduce(
-    (acc, val) =>
-      acc +
-      Math.max(
-        0,
-        (sumTotalValue + nextAlloc) * val.percentTarget - val.totalValue
-      ),
-    0
-  );
-  const slices: Slice[] = assets
-    .map((a) => {
-      const allocation = Math.max(
-        0,
-        (sumTotalValue + nextAlloc) * a.percentTarget - a.totalValue
-      );
-      return {
-        symbol: a.symbol,
-        totalValue: a.totalValue,
-        gain: Gain(a.totalValue, a.totalSpent),
-        return: Return(a.totalValue, a.totalSpent),
-        targetPercent: a.percentTarget,
-        actualPercent: a.totalValue / sumTotalValue,
-        nextBuy: (nextAlloc * allocation) / sumAllocation,
-      };
-    })
-    .sort((a, b) => b.totalValue - a.totalValue);
 
   const filteredTransactions = transactions.map((e) => {
     return {
@@ -166,7 +127,11 @@ export default function C1() {
           />
         </div>
         <div className="aspect-square self-center rounded-md bg-gray-900 p-2">
-          {isLoading ? <LoadingDots /> : <PieChart slices={slices} />}
+          {isLoading ? (
+            <LoadingDots />
+          ) : (
+            <PieChart assets={assets} sumTotalValue={sumTotalValue} />
+          )}
         </div>
         <div className="col-span-2 rounded-md bg-gray-900 p-2 text-xl font-bold">
           {isLoading ? <LoadingDots /> : <TimeSeriesChart assets={assets} />}
@@ -176,11 +141,7 @@ export default function C1() {
           {isLoading ? (
             <LoadingDots />
           ) : (
-            <SliceTable
-              nextAlloc={nextAlloc}
-              handleUpdate={handleUpdateNextAlloc}
-              slices={slices}
-            />
+            <SliceTable assets={assets} sumTotalValue={sumTotalValue} />
           )}
         </div>
         <div className="col-span-2 sm:col-span-3">

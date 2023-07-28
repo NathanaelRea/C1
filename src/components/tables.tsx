@@ -1,15 +1,50 @@
-import { type Slice, type Transaction } from ".";
+import { useState } from "react";
+import { type Asset, type Slice, type Transaction } from ".";
 import { ColorMoney, ColorPercent, Money } from "./money";
+import { Gain, Return } from "~/lib/util";
 
 export function SliceTable({
-  nextAlloc,
-  handleUpdate,
-  slices,
+  assets,
+  sumTotalValue,
 }: {
-  nextAlloc: number;
-  handleUpdate: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  slices: Slice[];
+  assets: Asset[];
+  sumTotalValue: number;
 }) {
+  const [nextAlloc, setNextAlloc] = useState(250);
+
+  const sumAllocation = assets.reduce(
+    (acc, val) =>
+      acc +
+      Math.max(
+        0,
+        (sumTotalValue + nextAlloc) * val.percentTarget - val.totalValue
+      ),
+    0
+  );
+
+  const slices: Slice[] = assets
+    .map((a) => {
+      const allocation = Math.max(
+        0,
+        (sumTotalValue + nextAlloc) * a.percentTarget - a.totalValue
+      );
+      return {
+        symbol: a.symbol,
+        totalValue: a.totalValue,
+        gain: Gain(a.totalValue, a.totalSpent),
+        return: Return(a.totalValue, a.totalSpent),
+        targetPercent: a.percentTarget,
+        actualPercent: a.totalValue / sumTotalValue,
+        nextBuy: (nextAlloc * allocation) / sumAllocation,
+      };
+    })
+    .sort((a, b) => b.totalValue - a.totalValue);
+
+  const handleUpdate = (e: React.ChangeEvent<HTMLInputElement>) =>
+    setNextAlloc(
+      isNaN(parseInt(e.target.value)) ? 0 : parseInt(e.target.value)
+    );
+
   return (
     <div className="overflow-clip rounded-md">
       <div className="grid grid-cols-5 items-center justify-items-center bg-fuchsia-900 p-2 text-white">

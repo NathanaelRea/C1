@@ -13,7 +13,8 @@ import {
   ArrowsPointingInIcon,
   ArrowsPointingOutIcon,
 } from "@heroicons/react/24/solid";
-import { type Slice, type CoinbaseTransaction } from ".";
+import { type Slice, type CoinbaseTransaction, type Asset } from ".";
+import { addDays } from "date-fns";
 
 interface Data {
   label: string;
@@ -22,11 +23,34 @@ interface Data {
 
 type TargetPercent = Record<string, number>;
 
-export function TimeSeriesChart({
-  data,
-}: {
-  data: CoinbaseTransaction[] | undefined;
-}) {
+function calculateTimeSeriesData(assetHistory: Asset[]) {
+  const maxHistoryLength = assetHistory.reduce(
+    (acc, val) => Math.max(acc, val.history.length),
+    0
+  );
+  const timeSeries = [] as CoinbaseTransaction[];
+  let timestamp;
+  for (let i = 0; i < maxHistoryLength; i += 1) {
+    let value = 0;
+    timestamp = undefined;
+    for (const asset of assetHistory) {
+      const ts = asset.history[asset.history.length - i - 1];
+      if (!ts) continue;
+      value += ts.value;
+      timestamp = ts.timestamp;
+    }
+    if (timestamp) timeSeries.push({ timestamp, value });
+  }
+  if (timestamp)
+    timeSeries.push({
+      timestamp: addDays(timestamp, -1),
+      value: 0,
+    });
+  return timeSeries.reverse();
+}
+
+export function TimeSeriesChart({ assets }: { assets: Asset[] }) {
+  const data = calculateTimeSeriesData(assets);
   const chartRef = useRef<SVGSVGElement>(null);
   const [highlighted, setHighlighted] = useState<number | null>(null);
   const { dimensions } = useBoundingRect(chartRef);

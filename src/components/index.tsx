@@ -1,6 +1,4 @@
-import { useQueries, useQuery } from "@tanstack/react-query";
-import axios from "axios";
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Indicator } from "./indicator";
 import { SliceTable, TransactionTable } from "./tables";
 import { Money, ColorMoney, ColorPercent } from "./money";
@@ -9,6 +7,7 @@ import LoadingDots from "./LoadingDots";
 import { useTransactions } from "./useTransactions";
 import Coinbase from "../assets/coinbase.favicon.ico";
 import Image from "next/image";
+import { useCalculate } from "~/hooks/useCalculate";
 
 export function Gain(value: number, cost: number) {
   return value - cost;
@@ -36,30 +35,6 @@ export interface CoinbaseTransaction {
   value: number;
 }
 
-interface MarketChartResponse {
-  prices: [number, number][];
-  market_caps: [number, number][];
-  total_volumes: [number, number][];
-}
-
-type CoinListReponse = {
-  id: string;
-  symbol: string;
-  name: string;
-}[];
-
-const getMarketHistory = async (name: string) => {
-  const res = await axios.get(
-    `https://api.coingecko.com/api/v3/coins/${name}/market_chart?vs_currency=usd&days=max`
-  );
-  return res.data as MarketChartResponse;
-};
-
-const getCoinList = async () => {
-  const res = await axios.get("https://api.coingecko.com/api/v3/coins/list");
-  return res.data as CoinListReponse;
-};
-
 export interface Asset {
   symbol: string;
   name: string;
@@ -85,146 +60,17 @@ export interface Transaction {
   symbol: string;
 }
 
-function getTransactionArray(start: Date, end: Date) {
-  const arr = [] as CoinbaseTransaction[];
-  for (
-    const dt = new Date(start);
-    dt <= new Date(end);
-    dt.setDate(dt.getDate() + 1)
-  ) {
-    arr.push({ timestamp: new Date(dt), value: 0 });
-  }
-  return arr;
-}
-
 export default function C1() {
   const [nextAlloc, setNextAlloc] = useState(250);
   const { transactions, handleImport } = useTransactions();
 
-  const coinList = useQuery({
-    staleTime: Infinity,
-    queryKey: ["coinList"],
-    queryFn: () => getCoinList(),
-  });
-  const coinIds = useMemo(() => {
-    if (coinList.data == undefined) return new Set<string>();
-    // reverse because usually better coins are on top?
-    return coinList.data.reduce((acc, val) => {
-      acc.add(val.id);
-      return acc;
-    }, new Set<string>());
-  }, [coinList]);
-
-  const portfolio = useMemo(() => {
-    if (!transactions) return [];
-
-    const unique = transactions.reduce((acc, val) => {
-      if (coinIds.has(val.coinId)) acc.add(val.coinId);
-      return acc;
-    }, new Set<string>());
-    const percentTarget = unique.size == 0 ? 1 : 1 / unique.size;
-    const items = new Map<string, PortfolioItem>();
-    transactions.forEach((t) => {
-      const p = items.get(t.coinId);
-      if (p) {
-        p.coinbaseTransactions.push({
-          timestamp: t.timeStamp,
-          value: t.quantity,
-        });
-      } else {
-        items.set(t.coinId, {
-          symbol: t.coinId,
-          name: t.coinId,
-          coinbaseTransactions: [
-            {
-              timestamp: t.timeStamp,
-              value: t.quantity,
-            },
-          ],
-          percentTarget,
-        });
-      }
-    });
-    return Array.from(items.values());
-  }, [transactions, coinIds]);
+  const { assets, sumTotalCost, sumTotalValue, isLoading } =
+    useCalculate(transactions);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const handleUploadButtonClick = () => {
     fileInputRef.current?.click();
   };
-
-  const coinGeckoMarketHistoryMap = useQueries({
-    queries: portfolio.map((item) => ({
-      staleTime: Infinity,
-      queryKey: ["marketHistory", item.name],
-      queryFn: () => getMarketHistory(item.name),
-    })),
-  });
-  const isLoading = coinGeckoMarketHistoryMap.some((r) => r.isLoading);
-  const timeSeriesMap = coinGeckoMarketHistoryMap.reduce((acc, val, idx) => {
-    const itemName = portfolio?.[idx]?.name;
-    const newData = val.data?.prices.map((r) => {
-      return {
-        timestamp: new Date(r[0]),
-        value: r[1],
-      };
-    });
-    if (itemName == null || newData == null) return acc;
-    acc.set(itemName, newData);
-    return acc;
-  }, new Map<string, CoinbaseTransaction[]>());
-
-  const assets: Asset[] = portfolio.map((p) => {
-    const market = timeSeriesMap.get(p.name);
-    if (!market)
-      return {
-        symbol: p.symbol,
-        name: p.name,
-        history: [],
-        totalValue: 0,
-        totalSpent: 0,
-        percentTarget: p.percentTarget,
-      } as Asset;
-    const history = [] as CoinbaseTransaction[];
-    let totalSpent = 0;
-    let buyIndex = 0;
-    let cummulativeAmmount = 0;
-    const firstBuyDate = p.coinbaseTransactions?.[0]?.timestamp;
-    market.forEach((a) => {
-      const currentCoinbaseTransaction = p.coinbaseTransactions[buyIndex];
-      if (
-        !firstBuyDate ||
-        a.timestamp < firstBuyDate
-        // !currentCoinbaseTransaction
-      )
-        return;
-      if (
-        buyIndex < p.coinbaseTransactions.length &&
-        currentCoinbaseTransaction &&
-        currentCoinbaseTransaction.timestamp <= a.timestamp
-      ) {
-        totalSpent += currentCoinbaseTransaction.value * a.value;
-        cummulativeAmmount += currentCoinbaseTransaction.value;
-        buyIndex += 1;
-      }
-      history.push({
-        timestamp: a.timestamp,
-        value: cummulativeAmmount * a.value,
-      });
-    });
-    const totalValue = history[history.length - 1]?.value ?? 0;
-    return {
-      symbol: p.symbol,
-      name: p.name,
-      history,
-      totalValue,
-      totalSpent,
-      percentTarget: p.percentTarget,
-    } as Asset;
-  });
-
-  const sumTotalValue = assets.reduce((acc, val) => acc + val.totalValue, 0);
-  const sumTotalCost = assets.reduce((acc, val) => acc + val.totalSpent, 0);
 
   const handleUpdateNextAlloc = (e: React.ChangeEvent<HTMLInputElement>) =>
     setNextAlloc(
@@ -239,7 +85,6 @@ export default function C1() {
       ),
     0
   );
-
   const slices: Slice[] = assets
     .map((a) => {
       const allocation = Math.max(
@@ -258,41 +103,13 @@ export default function C1() {
     })
     .sort((a, b) => b.totalValue - a.totalValue);
 
-  function calculateTimeSeriesData(assetHistory: Asset[]) {
-    const currentDate = assetHistory.reduce((acc, val) => {
-      const valTimestamp = val.history[0]?.timestamp;
-      if (valTimestamp && valTimestamp.getTime() < acc.getTime())
-        acc = valTimestamp;
-      return acc;
-    }, new Date());
-    currentDate.setDate(currentDate.getDate() - 1);
-    const timeSeries = getTransactionArray(currentDate, new Date());
-    for (const asset of assetHistory) {
-      for (let i = 0; i < asset.history.length; i += 1) {
-        // TODO make ts happy?
-        const idx = timeSeries.length - i - 1;
-        if (0 <= idx && idx < timeSeries.length) {
-          timeSeries[idx].value +=
-            asset.history[asset.history.length - i - 1]?.value ?? 0;
-        }
-      }
-    }
-    return timeSeries;
-  }
-  const timeSeriesData = calculateTimeSeriesData(assets);
-
-  // TODO just use data from useTransactions?
-  const flatTransactions = Object.values(portfolio)
-    .flatMap((p) =>
-      p.coinbaseTransactions.map((t) => {
-        return {
-          date: t.timestamp,
-          value: t.value,
-          symbol: p.symbol,
-        } as Transaction;
-      })
-    )
-    .sort((a, b) => b.date.getTime() - a.date.getTime());
+  const filteredTransactions = transactions.map((e) => {
+    return {
+      date: e.timeStamp,
+      symbol: e.coinId,
+      value: e.quantity,
+    };
+  });
 
   return (
     <div className="flex w-full justify-center">
@@ -352,11 +169,7 @@ export default function C1() {
           {isLoading ? <LoadingDots /> : <PieChart slices={slices} />}
         </div>
         <div className="col-span-2 rounded-md bg-gray-900 p-2 text-xl font-bold">
-          {isLoading ? (
-            <LoadingDots />
-          ) : (
-            <TimeSeriesChart data={timeSeriesData} />
-          )}
+          {isLoading ? <LoadingDots /> : <TimeSeriesChart assets={assets} />}
         </div>
         <div className="col-span-2 sm:col-span-3">
           <h3 className="text-xl font-bold text-white">Slices</h3>
@@ -372,7 +185,7 @@ export default function C1() {
         </div>
         <div className="col-span-2 sm:col-span-3">
           <h3 className="text-xl font-bold text-white">Transactions</h3>
-          <TransactionTable values={flatTransactions} />
+          <TransactionTable values={filteredTransactions} />
         </div>
       </div>
     </div>

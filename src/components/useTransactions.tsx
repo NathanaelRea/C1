@@ -38,7 +38,7 @@ const storageTransactionType = z.union([
 const storageTransaction = z.object({
   timeStamp: z.coerce.date(),
   type: storageTransactionType,
-  asset: z.string(),
+  coinId: z.string(),
   quantity: z.number(),
   totalPrice: z.number(),
 });
@@ -102,7 +102,7 @@ export function useTransactions() {
           data.push({
             timeStamp: coinbaseParsed.data.timeStamp,
             type: typeTransform(coinbaseParsed.data.transactionType),
-            asset: symbolTransform(coinbaseParsed.data.asset),
+            coinId: symbolTransform(coinbaseParsed.data.asset),
             quantity: coinbaseParsed.data.quantityTransacted,
             totalPrice: coinbaseParsed.data.subtotal,
           });
@@ -123,49 +123,56 @@ function symbolTransform(symbol: string): string {
 
 const defaultData: StorageTransaction[] = [
   {
-    asset: "BTC",
+    coinId: "bitcoin",
     type: "Buy",
     quantity: 0.015,
     totalPrice: -1,
     timeStamp: new Date("2023-01-01"),
   },
   {
-    asset: "BTC",
+    coinId: "bitcoin",
     type: "Buy",
     quantity: 0.015,
     totalPrice: -1,
-    timeStamp: new Date("2023-01-15"),
+    timeStamp: new Date("2023-06-01"),
   },
   {
-    asset: "ETH",
+    coinId: "ethereum",
     type: "Buy",
-    quantity: 0.5,
+    quantity: 0.25,
     totalPrice: -1,
     timeStamp: new Date("2023-01-01"),
   },
   {
-    asset: "DOGE",
+    coinId: "ethereum",
+    type: "Buy",
+    quantity: 0.25,
+    totalPrice: -1,
+    timeStamp: new Date("2023-06-01"),
+  },
+  {
+    coinId: "dogecoin",
     type: "Buy",
     quantity: 5_000,
     totalPrice: -1,
     timeStamp: new Date("2023-01-01"),
   },
   {
-    asset: "SOL",
+    coinId: "solana",
     type: "Buy",
     quantity: 30,
     totalPrice: -1,
     timeStamp: new Date("2023-01-01"),
   },
   {
-    asset: "XMR",
+    coinId: "monero",
     type: "Buy",
     quantity: 3,
     totalPrice: -1,
     timeStamp: new Date("2023-01-01"),
   },
   {
-    asset: "LINK",
+    coinId: "chainlink",
     type: "Buy",
     quantity: 100,
     totalPrice: -1,

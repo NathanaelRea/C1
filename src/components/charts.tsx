@@ -9,7 +9,10 @@ import {
   type RefObject,
 } from "react";
 import { currency2, percent1 } from "./money";
-import { ArrowsPointingInIcon } from "@heroicons/react/24/solid";
+import {
+  ArrowsPointingInIcon,
+  ArrowsPointingOutIcon,
+} from "@heroicons/react/24/solid";
 import { type Slice, type CoinbaseTransaction } from ".";
 
 interface Data {
@@ -112,7 +115,22 @@ export function TimeSeriesChart({
     setMousePosition(null);
   };
   const circleDiameter = 10;
-  const rectWidth = 24;
+
+  function getRectWidth(
+    data: CoinbaseTransaction[] | undefined,
+    xScale: d3.ScaleTime<number, number, never> | null
+  ) {
+    const base = 24;
+    if (!data || !xScale) return base;
+    const time1 = data[0]?.timestamp;
+    const time2 = data[1]?.timestamp;
+    if (!time1 || !time2) return base;
+    return Math.max(Math.abs(xScale(time1) - xScale(time2)), base);
+  }
+  const rectWidth = useMemo(
+    () => getRectWidth(data, xScaleMemo),
+    [data, xScaleMemo]
+  );
 
   const curData =
     data == null || highlighted == null ? null : data[highlighted];
@@ -296,6 +314,7 @@ export function PieChart({ slices }: { slices: Slice[] }) {
   ]);
 
   const curData = highlighted == null ? null : data[highlighted];
+  const target = curData?.label ? targetPercent[curData?.label] ?? 0 : 0;
 
   return (
     <div className="relative h-full w-full">
@@ -305,14 +324,16 @@ export function PieChart({ slices }: { slices: Slice[] }) {
           className={`pointer-events-none absolute left-0 top-0 flex h-full w-full items-center justify-center`}
         >
           <div className="text-center">
-            <div className="text-white">{curData.label}</div>
-            <div className="text-white">{percent1.format(curData.value)}</div>
-            <div className="flex items-center">
-              <ArrowsPointingInIcon className="h-3 text-white" />
-              <div className="text-white">
-                {percent1.format(targetPercent[curData.label] ?? 0)}
-              </div>
+            <div className="capitalize text-white">{curData.label}</div>
+            <div className="flex items-center gap-1">
+              {curData.value > target ? (
+                <ArrowsPointingInIcon className="h-3 text-white" />
+              ) : (
+                <ArrowsPointingOutIcon className="h-3 text-white" />
+              )}
+              <div className="text-white">{percent1.format(curData.value)}</div>
             </div>
+            <div className="text-white">{percent1.format(target)}</div>
           </div>
         </div>
       )}

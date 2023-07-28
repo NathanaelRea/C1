@@ -1,4 +1,3 @@
-import { addDays } from "date-fns";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { useMemo, useRef, useState } from "react";
@@ -8,6 +7,8 @@ import { Money, ColorMoney, ColorPercent } from "./money";
 import { PieChart, TimeSeriesChart } from "./charts";
 import LoadingDots from "./LoadingDots";
 import { useTransactions } from "./useTransactions";
+import Coinbase from "../assets/coinbase.favicon.ico";
+import Image from "next/image";
 
 export function Gain(value: number, cost: number) {
   return value - cost;
@@ -84,6 +85,18 @@ export interface Transaction {
   symbol: string;
 }
 
+function getTransactionArray(start: Date, end: Date) {
+  const arr = [] as CoinbaseTransaction[];
+  for (
+    const dt = new Date(start);
+    dt <= new Date(end);
+    dt.setDate(dt.getDate() + 1)
+  ) {
+    arr.push({ timestamp: new Date(dt), value: 0 });
+  }
+  return arr;
+}
+
 export default function C1() {
   const [nextAlloc, setNextAlloc] = useState(250);
   const { transactions, handleImport } = useTransactions();
@@ -93,87 +106,71 @@ export default function C1() {
     queryKey: ["coinList"],
     queryFn: () => getCoinList(),
   });
-  const coinNameLookup = useMemo(() => {
-    // This is so dumb. I need Map<string, string[]> and prompt user for correct id
-    if (coinList.data == undefined) return new Map<string, string>();
+  const coinIds = useMemo(() => {
+    if (coinList.data == undefined) return new Set<string>();
     // reverse because usually better coins are on top?
-    const asdf = coinList.data.reduce((acc, val) => {
-      // This is so dumb. Why does coingeko allow coins with the same symbol?
-      if (
-        !(
-          val.id.endsWith("wormhole") ||
-          val.id.startsWith("binance-peg") ||
-          val.id.startsWith("wrapped")
-        )
-      )
-        acc.set(val.symbol, val.id);
+    return coinList.data.reduce((acc, val) => {
+      acc.add(val.id);
       return acc;
-    }, new Map<string, string>());
-    // Hacks for now - of the incorrect I've seen
-    asdf.set("snx", "havven");
-    asdf.set("poly", "polymath");
-    return asdf;
+    }, new Set<string>());
   }, [coinList]);
 
   const portfolio = useMemo(() => {
     if (!transactions) return [];
 
     const unique = transactions.reduce((acc, val) => {
-      if (coinNameLookup.get(val.asset.toLowerCase())) acc.add(val.asset);
+      if (coinIds.has(val.coinId)) acc.add(val.coinId);
       return acc;
     }, new Set<string>());
     const percentTarget = unique.size == 0 ? 1 : 1 / unique.size;
     const items = new Map<string, PortfolioItem>();
     transactions.forEach((t) => {
-      const p = items.get(t.asset);
+      const p = items.get(t.coinId);
       if (p) {
         p.coinbaseTransactions.push({
           timestamp: t.timeStamp,
           value: t.quantity,
         });
       } else {
-        const name = coinNameLookup.get(t.asset.toLowerCase());
-        if (name) {
-          items.set(t.asset, {
-            symbol: t.asset,
-            name,
-            coinbaseTransactions: [
-              {
-                timestamp: t.timeStamp,
-                value: t.quantity,
-              },
-            ],
-            percentTarget,
-          });
-        }
+        items.set(t.coinId, {
+          symbol: t.coinId,
+          name: t.coinId,
+          coinbaseTransactions: [
+            {
+              timestamp: t.timeStamp,
+              value: t.quantity,
+            },
+          ],
+          percentTarget,
+        });
       }
     });
     return Array.from(items.values());
-  }, [transactions, coinNameLookup]);
+  }, [transactions, coinIds]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const handleUploadButtonClick = () => {
     fileInputRef.current?.click();
   };
 
-  const marketHistories = useQueries({
+  const coinGeckoMarketHistoryMap = useQueries({
     queries: portfolio.map((item) => ({
-      staleTime: 60 * 60 * 1000,
+      staleTime: Infinity,
       queryKey: ["marketHistory", item.name],
       queryFn: () => getMarketHistory(item.name),
     })),
   });
-  const isLoading = marketHistories.some((r) => r.isLoading);
-  const timeSeriesMap = marketHistories.reduce((acc, val, idx) => {
-    const k = portfolio?.[idx]?.name;
+  const isLoading = coinGeckoMarketHistoryMap.some((r) => r.isLoading);
+  const timeSeriesMap = coinGeckoMarketHistoryMap.reduce((acc, val, idx) => {
+    const itemName = portfolio?.[idx]?.name;
     const newData = val.data?.prices.map((r) => {
       return {
         timestamp: new Date(r[0]),
         value: r[1],
-      } as CoinbaseTransaction;
+      };
     });
-    if (k == null || newData == null) return acc;
-    acc.set(k, newData);
+    if (itemName == null || newData == null) return acc;
+    acc.set(itemName, newData);
     return acc;
   }, new Map<string, CoinbaseTransaction[]>());
 
@@ -197,12 +194,13 @@ export default function C1() {
       const currentCoinbaseTransaction = p.coinbaseTransactions[buyIndex];
       if (
         !firstBuyDate ||
-        a.timestamp < firstBuyDate ||
-        !currentCoinbaseTransaction
+        a.timestamp < firstBuyDate
+        // !currentCoinbaseTransaction
       )
         return;
       if (
         buyIndex < p.coinbaseTransactions.length &&
+        currentCoinbaseTransaction &&
         currentCoinbaseTransaction.timestamp <= a.timestamp
       ) {
         totalSpent += currentCoinbaseTransaction.value * a.value;
@@ -261,28 +259,25 @@ export default function C1() {
     .sort((a, b) => b.totalValue - a.totalValue);
 
   function calculateTimeSeriesData(assetHistory: Asset[]) {
-    const ans = [] as CoinbaseTransaction[];
-    for (const a of assetHistory) {
-      if (!a.history) continue;
-      for (let i = a.history.length - 1; i >= 0; i--) {
-        const idx = a.history.length - i - 1;
-        const first = a.history[i];
-        if (!first) continue;
-        const firstT = first?.timestamp;
-        if (idx >= ans.length && firstT != undefined)
-          ans.push({ timestamp: firstT, value: 0 });
-        if (ans[idx]) {
-          ans[idx]!.value += first.value;
+    const currentDate = assetHistory.reduce((acc, val) => {
+      const valTimestamp = val.history[0]?.timestamp;
+      if (valTimestamp && valTimestamp.getTime() < acc.getTime())
+        acc = valTimestamp;
+      return acc;
+    }, new Date());
+    currentDate.setDate(currentDate.getDate() - 1);
+    const timeSeries = getTransactionArray(currentDate, new Date());
+    for (const asset of assetHistory) {
+      for (let i = 0; i < asset.history.length; i += 1) {
+        // TODO make ts happy?
+        const idx = timeSeries.length - i - 1;
+        if (0 <= idx && idx < timeSeries.length) {
+          timeSeries[idx].value +=
+            asset.history[asset.history.length - i - 1]?.value ?? 0;
         }
       }
     }
-    if (ans.length > 0)
-      ans.push({
-        timestamp: addDays(ans[ans.length - 1]!.timestamp, -1),
-        value: 0,
-      });
-    ans.reverse();
-    return ans;
+    return timeSeries;
   }
   const timeSeriesData = calculateTimeSeriesData(assets);
 
@@ -307,15 +302,17 @@ export default function C1() {
             <h1 className="text-2xl font-bold text-white">Portfolio</h1>
             <input
               type="file"
+              accept=".csv"
               onChange={handleImport}
               ref={fileInputRef}
               hidden
             />
             <button
-              className="rounded-md bg-fuchsia-700 px-2 py-1 text-white hover:bg-fuchsia-500"
+              className="flex items-center gap-2 rounded-md bg-fuchsia-700 px-2 py-1 text-sm text-white hover:bg-fuchsia-500"
               onClick={handleUploadButtonClick}
             >
               Import
+              <Image src={Coinbase} alt="coinbase" className="h-4 w-4" />
             </button>
           </div>
         </div>

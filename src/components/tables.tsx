@@ -26,7 +26,7 @@ export function SliceTable({
         <div className="flex flex-col items-center">
           <div>Next Buy</div>
           <input
-            className="bg-inherit text-center outline-none"
+            className="border bg-inherit px-2 text-center focus:border-blue-500"
             value={nextAlloc}
             placeholder="250"
             onChange={handleUpdate}

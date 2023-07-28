@@ -7,29 +7,50 @@ import {
   type PortfolioItem,
 } from "~/components";
 import { type StorageTransaction } from "~/components/useTransactions";
+import { z } from "zod";
 
-interface MarketChartResponse {
-  prices: [number, number][];
-  market_caps: [number, number][];
-  total_volumes: [number, number][];
-}
+const dateNumberSchema = z.array(
+  z.tuple([z.number().transform((v) => new Date(v)), z.number()])
+);
+const dateNulllableNumberSchema = z.array(
+  z.tuple([z.number().transform((v) => new Date(v)), z.number().nullable()])
+);
+const marketChartSchema = z.object({
+  prices: dateNumberSchema,
+  market_caps: dateNulllableNumberSchema, // No clue why only this nullable?
+  total_volumes: dateNumberSchema,
+});
+type MarketChart = z.infer<typeof marketChartSchema>;
 
-type CoinListReponse = {
-  id: string;
-  symbol: string;
-  name: string;
-}[];
+const coinListSchema = z.array(
+  z.object({
+    id: z.string(),
+    symbol: z.string(),
+    name: z.string(),
+  })
+);
+type CoinList = z.infer<typeof coinListSchema>;
 
 const getMarketHistory = async (name: string) => {
   const res = await axios.get(
     `https://api.coingecko.com/api/v3/coins/${name}/market_chart?vs_currency=usd&days=max`
   );
-  return res.data as MarketChartResponse;
+  const parsed = marketChartSchema.safeParse(res.data);
+  if (!parsed.success) {
+    console.error(parsed.error);
+    return { prices: [], market_caps: [], total_volumes: [] } as MarketChart;
+  }
+  return parsed.data;
 };
 
 const getCoinList = async () => {
   const res = await axios.get("https://api.coingecko.com/api/v3/coins/list");
-  return res.data as CoinListReponse;
+  const parsed = coinListSchema.safeParse(res.data);
+  if (!parsed.success) {
+    console.error(parsed.error);
+    return [] as CoinList;
+  }
+  return parsed.data;
 };
 
 export function useCalculate(transactions: StorageTransaction[]) {
@@ -91,13 +112,14 @@ export function useCalculate(transactions: StorageTransaction[]) {
   const isLoading = coinGeckoMarketHistoryMap.some((r) => r.isLoading);
   const timeSeriesMap = coinGeckoMarketHistoryMap.reduce((acc, val, idx) => {
     const itemName = portfolio?.[idx]?.name;
+    if (!itemName) return acc;
     const newData = val.data?.prices.map((r) => {
       return {
-        timestamp: new Date(r[0]),
+        timestamp: r[0],
         value: r[1],
       };
     });
-    if (itemName == null || newData == null) return acc;
+    if (newData == null) return acc;
     acc.set(itemName, newData);
     return acc;
   }, new Map<string, CoinbaseTransaction[]>());

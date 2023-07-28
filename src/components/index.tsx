@@ -9,14 +9,6 @@ import Coinbase from "../assets/coinbase.favicon.ico";
 import Image from "next/image";
 import { useCalculate } from "~/hooks/useCalculate";
 
-export function Gain(value: number, cost: number) {
-  return value - cost;
-}
-
-export function Return(value: number, cost: number) {
-  return cost == 0 ? 0 : (value - cost) / cost;
-}
-
 export interface TimeSeriesData {
   date: Date;
   value: number;
@@ -58,6 +50,14 @@ export interface Transaction {
   date: Date;
   value: number;
   symbol: string;
+}
+
+export function Gain(value: number, cost: number) {
+  return value - cost;
+}
+
+export function Return(value: number, cost: number) {
+  return cost == 0 ? 0 : (value - cost) / cost;
 }
 
 export default function C1() {

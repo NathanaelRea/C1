@@ -1,10 +1,20 @@
 import { useState } from "react";
 import { type Asset, type Slice, type Transaction } from ".";
 import { Gain, Return } from "~/lib/utils";
-import { type ColumnDef } from "@tanstack/react-table";
+import {
+  type ColumnDef,
+  type SortDirection,
+  type Column,
+} from "@tanstack/react-table";
 import { DataTable } from "./data-table";
 import { ColorMoney, ColorPercent, Money } from "./money";
 import { z } from "zod";
+import { Button } from "./ui/button";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  ArrowsUpDownIcon,
+} from "@heroicons/react/24/solid";
 
 const metaSchema = z.object({
   allocationHandler: z.function().args(z.number()).returns(z.void()),
@@ -12,28 +22,34 @@ const metaSchema = z.object({
 
 const sliceColumns: ColumnDef<Slice>[] = [
   {
-    header: "Name",
+    accessorKey: "symbol",
     cell: ({ row }) => <div className="capitalize">{row.original.symbol}</div>,
+    header: ({ column }) => <SortHeader column={column} name="Name" />,
   },
   {
-    header: "Value",
-    cell: ({ row }) => <Money value={row.original.gain} />,
+    accessorKey: "totalValue",
+    cell: ({ row }) => <Money value={row.original.totalValue} />,
+    header: ({ column }) => <SortHeader column={column} name="Value" />,
   },
   {
-    header: "Gain",
+    accessorKey: "gain",
     cell: ({ row }) => <ColorMoney value={row.original.gain} />,
+    header: ({ column }) => <SortHeader column={column} name="Gain" />,
   },
   {
-    header: "Return",
+    accessorKey: "return",
     cell: ({ row }) => <ColorPercent value={row.original.return} />,
+    header: ({ column }) => <SortHeader column={column} name="Return" />,
   },
   {
-    header: "Actual",
+    accessorKey: "actualPercent",
     cell: ({ row }) => <ColorPercent value={row.original.actualPercent} />,
+    header: ({ column }) => <SortHeader column={column} name="Actual" />,
   },
   {
-    header: "Target",
+    accessorKey: "targetPercent",
     cell: ({ row }) => <ColorPercent value={row.original.targetPercent} />,
+    header: ({ column }) => <SortHeader column={column} name="Target" />,
   },
   {
     accessorKey: "nextBuy",
@@ -46,7 +62,7 @@ const sliceColumns: ColumnDef<Slice>[] = [
             <>
               <div>Next Buy</div>
               <input
-                className="w-1/2 border bg-transparent px-2 text-center focus:border-blue-500"
+                className="w-16 border bg-transparent text-center focus:border-blue-500"
                 placeholder="250"
                 onChange={(e) =>
                   parsed.success &&
@@ -122,18 +138,39 @@ export function SliceTable({
 
 const transactionColumns: ColumnDef<Transaction>[] = [
   {
-    header: "Name",
+    accessorKey: "symbol",
     cell: ({ row }) => <div className="capitalize">{row.original.symbol}</div>,
-  },
-  {
-    header: "Date",
-    cell: ({ row }) => row.original.date.toLocaleDateString(),
+    header: ({ column }) => <SortHeader column={column} name="Name" />,
   },
   {
     accessorKey: "value",
     header: "Value",
   },
+  {
+    accessorKey: "date",
+    cell: ({ row }) => row.original.date.toLocaleDateString(),
+    header: ({ column }) => <SortHeader column={column} name="Date" />,
+  },
 ];
+
+function SortHeader<T>({ column, name }: { column: Column<T>; name: string }) {
+  return (
+    <Button
+      variant="ghost"
+      onClick={() => column.toggleSorting()}
+      className="flex gap-2"
+    >
+      {name}
+      <SortArrows sort={column.getIsSorted()} />
+    </Button>
+  );
+}
+
+function SortArrows({ sort }: { sort: false | SortDirection }) {
+  if (!sort) return <ArrowsUpDownIcon className="h-4 w-4" />;
+  else if (sort == "asc") return <ArrowDownIcon className="h-4 w-4" />;
+  else return <ArrowUpIcon className="h-4 w-4" />;
+}
 
 export function TransactionTable({ values }: { values: Transaction[] }) {
   return (

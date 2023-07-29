@@ -8,7 +8,7 @@ import { useTransactions } from "./useTransactions";
 import Coinbase from "../assets/coinbase.favicon.ico";
 import Image from "next/image";
 import { useCalculate } from "~/hooks/useCalculate";
-import { Gain, Return } from "~/lib/util";
+import { Gain, Return } from "~/lib/utils";
 
 export interface TimeSeriesData {
   date: Date;
@@ -77,7 +77,7 @@ export default function C1() {
       <div className="m-4 grid max-w-screen-xl flex-grow grid-cols-2 gap-6 sm:grid-cols-3 sm:p-8">
         <div className="col-span-2 sm:col-span-3">
           <div className="flex items-end gap-2">
-            <h1 className="text-2xl font-bold text-white">Portfolio</h1>
+            <h1 className="text-2xl font-bold">Portfolio</h1>
             <input
               type="file"
               accept=".csv"
@@ -86,7 +86,7 @@ export default function C1() {
               hidden
             />
             <button
-              className="flex items-center gap-2 rounded-md bg-fuchsia-700 px-2 py-1 text-sm text-white hover:bg-fuchsia-500"
+              className="flex items-center gap-2 rounded-md bg-fuchsia-700 px-2 py-1 text-sm hover:bg-fuchsia-500"
               onClick={handleUploadButtonClick}
             >
               Import
@@ -126,18 +126,18 @@ export default function C1() {
             value={<ColorMoney value={0} />}
           />
         </div>
-        <div className="aspect-square self-center rounded-md bg-gray-900 p-2">
+        <div className="aspect-square self-center rounded-md bg-slate-100 p-2 dark:bg-slate-900">
           {isLoading ? (
             <LoadingDots />
           ) : (
             <PieChart assets={assets} sumTotalValue={sumTotalValue} />
           )}
         </div>
-        <div className="col-span-2 rounded-md bg-gray-900 p-2 text-xl font-bold">
+        <div className="col-span-2 rounded-md bg-slate-100 p-2 text-xl font-bold dark:bg-slate-900">
           {isLoading ? <LoadingDots /> : <TimeSeriesChart assets={assets} />}
         </div>
         <div className="col-span-2 sm:col-span-3">
-          <h3 className="text-xl font-bold text-white">Slices</h3>
+          <h3 className="text-xl font-bold">Slices</h3>
           {isLoading ? (
             <LoadingDots />
           ) : (
@@ -145,7 +145,7 @@ export default function C1() {
           )}
         </div>
         <div className="col-span-2 sm:col-span-3">
-          <h3 className="text-xl font-bold text-white">Transactions</h3>
+          <h3 className="text-xl font-bold">Transactions</h3>
           <TransactionTable values={filteredTransactions} />
         </div>
       </div>

@@ -80,7 +80,6 @@ export function TimeSeriesChart({ assets }: { assets: Asset[] }) {
       .append("path")
       .datum(data)
       .attr("fill", "none")
-      .attr("stroke", "white")
       .attr("stroke-width", 2)
       .attr("d", line);
 
@@ -161,12 +160,15 @@ export function TimeSeriesChart({ assets }: { assets: Asset[] }) {
 
   return (
     <div className="relative h-full w-full overflow-hidden">
-      <svg ref={chartRef} className="h-full w-full cursor-pointer" />
+      <svg
+        ref={chartRef}
+        className="h-full w-full cursor-pointer stroke-black dark:stroke-white"
+      />
       <AnimatePresence>
         {data != null && mousePosition != null && curData != null && (
           <>
             <motion.div
-              className={`absolute top-0 h-full bg-white`}
+              className="absolute top-0 h-full bg-black dark:bg-white"
               style={{ width: rectWidth }}
               initial={{ opacity: 0 }}
               animate={{
@@ -184,7 +186,7 @@ export function TimeSeriesChart({ assets }: { assets: Asset[] }) {
               }}
             />
             <motion.div
-              className={`absolute z-10 rounded-full bg-white`}
+              className="absolute z-10 rounded-full bg-black dark:bg-white"
               style={{ width: circleDiameter, height: circleDiameter }}
               initial={{ opacity: 0 }}
               animate={{
@@ -215,10 +217,8 @@ export function TimeSeriesChart({ assets }: { assets: Asset[] }) {
               }}
               transition={{ ease: "easeOut" }}
             >
-              <p className="text-white">
-                {curData.timestamp.toLocaleDateString()}
-              </p>
-              <p className="text-white">{currency2.format(curData.value)}</p>
+              <p>{curData.timestamp.toLocaleDateString()}</p>
+              <p>{currency2.format(curData.value)}</p>
             </motion.div>
           </>
         )}
@@ -353,20 +353,18 @@ export function PieChart({
     <div className="relative h-full w-full">
       <svg ref={chartRef} className="h-full w-full" />
       {curData != null && (
-        <div
-          className={`pointer-events-none absolute left-0 top-0 flex h-full w-full items-center justify-center`}
-        >
+        <div className="pointer-events-none absolute left-0 top-0 flex h-full w-full items-center justify-center">
           <div className="text-center">
-            <div className="capitalize text-white">{curData.label}</div>
+            <div className="capitalize">{curData.label}</div>
             <div className="flex items-center gap-1">
               {curData.value > target ? (
-                <ArrowsPointingInIcon className="h-3 text-white" />
+                <ArrowsPointingInIcon className="h-3" />
               ) : (
-                <ArrowsPointingOutIcon className="h-3 text-white" />
+                <ArrowsPointingOutIcon className="h-3" />
               )}
-              <div className="text-white">{percent1.format(curData.value)}</div>
+              <div>{percent1.format(curData.value)}</div>
             </div>
-            <div className="text-white">{percent1.format(target)}</div>
+            <div>{percent1.format(target)}</div>
           </div>
         </div>
       )}

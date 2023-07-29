@@ -1,7 +1,74 @@
 import { useState } from "react";
 import { type Asset, type Slice, type Transaction } from ".";
+import { Gain, Return } from "~/lib/utils";
+import { type ColumnDef } from "@tanstack/react-table";
+import { DataTable } from "./data-table";
 import { ColorMoney, ColorPercent, Money } from "./money";
-import { Gain, Return } from "~/lib/util";
+import { z } from "zod";
+
+const metaSchema = z.object({
+  allocationHandler: z.function().args(z.number()).returns(z.void()),
+});
+
+const sliceColumns: ColumnDef<Slice>[] = [
+  {
+    header: "Name",
+    cell: ({ row }) => <div className="capitalize">{row.original.symbol}</div>,
+  },
+  {
+    header: "Value",
+    cell: ({ row }) => <Money value={row.original.gain} />,
+  },
+  {
+    header: "Gain",
+    cell: ({ row }) => <ColorMoney value={row.original.gain} />,
+  },
+  {
+    header: "Return",
+    cell: ({ row }) => <ColorPercent value={row.original.return} />,
+  },
+  {
+    header: "Actual",
+    cell: ({ row }) => <ColorPercent value={row.original.actualPercent} />,
+  },
+  {
+    header: "Target",
+    cell: ({ row }) => <ColorPercent value={row.original.targetPercent} />,
+  },
+  {
+    accessorKey: "nextBuy",
+    header: ({ table }) => {
+      // dumb but works :shrug:
+      const parsed = metaSchema.safeParse(table.options.meta);
+      return (
+        <div className="flex flex-col items-center">
+          {table.options.meta != undefined && (
+            <>
+              <div>Next Buy</div>
+              <input
+                className="w-1/2 border bg-transparent px-2 text-center focus:border-blue-500"
+                placeholder="250"
+                onChange={(e) =>
+                  parsed.success &&
+                  parsed.data.allocationHandler(parseInt(e.target.value))
+                }
+              />
+            </>
+          )}
+        </div>
+      );
+    },
+    cell: ({ row }) => (
+      <div className="flex justify-center">
+        {row.original.nextBuy == 0 ? (
+          <div>-</div>
+        ) : (
+          <Money value={row.original.nextBuy} />
+        )}
+      </div>
+    ),
+  },
+];
 
 export function SliceTable({
   assets,
@@ -10,23 +77,23 @@ export function SliceTable({
   assets: Asset[];
   sumTotalValue: number;
 }) {
-  const [nextAlloc, setNextAlloc] = useState(250);
+  const [allocation, setAllocation] = useState(250);
 
   const sumAllocation = assets.reduce(
     (acc, val) =>
       acc +
       Math.max(
         0,
-        (sumTotalValue + nextAlloc) * val.percentTarget - val.totalValue
+        (sumTotalValue + allocation) * val.percentTarget - val.totalValue
       ),
     0
   );
 
   const slices: Slice[] = assets
     .map((a) => {
-      const allocation = Math.max(
+      const thisAllocation = Math.max(
         0,
-        (sumTotalValue + nextAlloc) * a.percentTarget - a.totalValue
+        (sumTotalValue + allocation) * a.percentTarget - a.totalValue
       );
       return {
         symbol: a.symbol,
@@ -35,79 +102,43 @@ export function SliceTable({
         return: Return(a.totalValue, a.totalSpent),
         targetPercent: a.percentTarget,
         actualPercent: a.totalValue / sumTotalValue,
-        nextBuy: (nextAlloc * allocation) / sumAllocation,
+        nextBuy: (allocation * thisAllocation) / sumAllocation,
       };
     })
     .sort((a, b) => b.totalValue - a.totalValue);
 
-  const handleUpdate = (e: React.ChangeEvent<HTMLInputElement>) =>
-    setNextAlloc(
-      isNaN(parseInt(e.target.value)) ? 0 : parseInt(e.target.value)
-    );
+  const allocationHandler = (n: number) => setAllocation(isNaN(n) ? 0 : n);
 
   return (
-    <div className="overflow-clip rounded-md">
-      <div className="grid grid-cols-5 items-center justify-items-center bg-fuchsia-900 p-2 text-white">
-        <div>Name</div>
-        <div>Value</div>
-        <div className="flex flex-col items-center">
-          <div>Gain</div>
-          <div>Return</div>
-        </div>
-        <div className="flex flex-col items-center">
-          <div>Actual</div>
-          <div>Target</div>
-        </div>
-        <div className="flex flex-col items-center">
-          <div>Next Buy</div>
-          <input
-            className="w-3/4 border bg-transparent px-2 text-center focus:border-blue-500"
-            value={nextAlloc}
-            placeholder="250"
-            onChange={handleUpdate}
-          />
-        </div>
-      </div>
-      {slices.map((slice) => (
-        <div
-          className="grid grid-cols-5 items-center justify-items-center bg-gray-900 p-1 text-white"
-          key={slice.symbol}
-        >
-          <div>{slice.symbol}</div>
-          <ColorMoney value={slice.totalValue} />
-          <div className="flex flex-col items-end">
-            <ColorMoney value={slice.gain} />
-            <ColorPercent value={slice.return} />
-          </div>
-          <div className="flex flex-col items-end">
-            <ColorPercent value={slice.actualPercent} />
-            <ColorPercent value={slice.targetPercent} />
-          </div>
-          {slice.nextBuy == 0 ? <div>-</div> : <Money value={slice.nextBuy} />}
-        </div>
-      ))}
+    <div className="container mx-auto py-10">
+      <DataTable
+        columns={sliceColumns}
+        data={slices}
+        meta={{ allocationHandler }}
+      />
     </div>
   );
 }
 
+const transactionColumns: ColumnDef<Transaction>[] = [
+  {
+    header: "Name",
+    cell: ({ row }) => <div className="capitalize">{row.original.symbol}</div>,
+  },
+  {
+    header: "Date",
+    cell: ({ row }) => row.original.date.toLocaleDateString(),
+  },
+  {
+    accessorKey: "value",
+    header: "Value",
+  },
+];
+
 export function TransactionTable({ values }: { values: Transaction[] }) {
   return (
-    <div className="overflow-clip rounded-md">
-      <div className="grid grid-cols-3 items-center justify-items-center rounded-t-md bg-fuchsia-900 p-2 text-white">
-        <div>Name</div>
-        <div>Date</div>
-        <div>Value</div>
-      </div>
-      {values.map((t) => (
-        <div
-          key={`${t.symbol}-${t.date.toLocaleDateString()}-${t.value}`}
-          className="grid grid-cols-3 items-center justify-items-center bg-gray-900 p-1 text-white"
-        >
-          <div>{t.symbol}</div>
-          <div>{t.date.toLocaleDateString()}</div>
-          <div>{t.value}</div>
-        </div>
-      ))}
+    <div className="container mx-auto py-10">
+      <DataTable columns={transactionColumns} data={values} />
     </div>
   );
 }

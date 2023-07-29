@@ -1,17 +1,16 @@
-"use client";
-
+import { addWeeks } from "date-fns";
 import { useState } from "react";
 import { z } from "zod";
 
-const coinbaseTransactionType = z.union([
-  z.literal("Buy"),
-  z.literal("Sell"),
-  z.literal("Send"),
-  z.literal("Convert"),
-  z.literal("Receive"),
-  z.literal("Rewards Income"),
-  z.literal("Advanced Trade Buy"),
-  z.literal("Advanced Trade Sell"),
+const coinbaseTransactionType = z.enum([
+  "Buy",
+  "Sell",
+  "Send",
+  "Convert",
+  "Receive",
+  "Rewards Income",
+  "Advanced Trade Buy",
+  "Advanced Trade Sell",
 ]);
 const coinbaseSchema = z.object({
   timeStamp: z.coerce.date(),
@@ -27,13 +26,13 @@ const coinbaseSchema = z.object({
 });
 type CoinbaseTransactionType = z.infer<typeof coinbaseTransactionType>;
 
-const storageTransactionType = z.union([
-  z.literal("Buy"),
-  z.literal("Sell"),
-  z.literal("Stake"),
-  z.literal("Send"),
-  z.literal("Receive"),
-  z.literal("Other"),
+const storageTransactionType = z.enum([
+  "Buy",
+  "Sell",
+  "Send",
+  "Receive",
+  "Stake",
+  "Other",
 ]);
 const storageTransaction = z.object({
   timeStamp: z.coerce.date(),
@@ -68,13 +67,13 @@ function typeTransform(
 const TRANSACTIONS = "transactions";
 
 export function useTransactions() {
-  const lS =
+  const localStorage =
     typeof window !== "undefined"
       ? window.localStorage.getItem(TRANSACTIONS) ?? "[]"
       : "[]";
-  const p = z.array(storageTransaction).safeParse(JSON.parse(lS));
+  const p = z.array(storageTransaction).safeParse(JSON.parse(localStorage));
   const [transactions, setTransactions] = useState<StorageTransaction[]>(
-    p.success && p.data.length > 0 ? p.data : defaultData
+    p.success && p.data.length > 0 ? p.data : createDefaultData()
   );
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -116,66 +115,36 @@ export function useTransactions() {
 
   return { transactions, handleImport };
 }
+
 function symbolTransform(symbol: string): string {
   // Coinbase is silly
   return symbol === "ETH2" ? "ETH" : symbol;
 }
 
-const defaultData: StorageTransaction[] = [
-  {
-    coinId: "bitcoin",
-    type: "Buy",
-    quantity: 0.015,
-    totalPrice: -1,
-    timeStamp: new Date("2023-01-01"),
-  },
-  {
-    coinId: "bitcoin",
-    type: "Buy",
-    quantity: 0.015,
-    totalPrice: -1,
-    timeStamp: new Date("2023-06-01"),
-  },
-  {
-    coinId: "ethereum",
-    type: "Buy",
-    quantity: 0.25,
-    totalPrice: -1,
-    timeStamp: new Date("2023-01-01"),
-  },
-  {
-    coinId: "ethereum",
-    type: "Buy",
-    quantity: 0.25,
-    totalPrice: -1,
-    timeStamp: new Date("2023-06-01"),
-  },
-  {
-    coinId: "dogecoin",
-    type: "Buy",
-    quantity: 5_000,
-    totalPrice: -1,
-    timeStamp: new Date("2023-01-01"),
-  },
-  {
-    coinId: "solana",
-    type: "Buy",
-    quantity: 30,
-    totalPrice: -1,
-    timeStamp: new Date("2023-01-01"),
-  },
-  {
-    coinId: "monero",
-    type: "Buy",
-    quantity: 3,
-    totalPrice: -1,
-    timeStamp: new Date("2023-01-01"),
-  },
-  {
-    coinId: "chainlink",
-    type: "Buy",
-    quantity: 100,
-    totalPrice: -1,
-    timeStamp: new Date("2023-01-01"),
-  },
-];
+function createDefaultData() {
+  const coinIds = [
+    { id: "bitcoin", amount: 0.015 },
+    { id: "ethereum", amount: 0.25 },
+    { id: "dogecoin", amount: 2_500 },
+    { id: "monero", amount: 1.5 },
+    { id: "chainlink", amount: 50 },
+    { id: "the-graph", amount: 2_500 },
+  ];
+
+  const data: StorageTransaction[] = [];
+  let date = new Date(Date.UTC(2023, 0, 1));
+  const today = new Date();
+  while (date < today) {
+    for (const coin of coinIds) {
+      data.push({
+        coinId: coin.id,
+        type: "Buy",
+        quantity: coin.amount,
+        totalPrice: -1,
+        timeStamp: new Date(date),
+      });
+    }
+    date = addWeeks(date, 1);
+  }
+  return data;
+}

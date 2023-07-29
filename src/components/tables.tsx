@@ -24,7 +24,9 @@ const sliceColumns: ColumnDef<Slice>[] = [
   {
     accessorKey: "symbol",
     cell: ({ row }) => <div className="capitalize">{row.original.symbol}</div>,
-    header: ({ column }) => <SortHeader column={column} name="Name" />,
+    header: ({ column }) => (
+      <SortHeader column={column} name="Name" descFirst={false} />
+    ),
   },
   {
     accessorKey: "totalValue",
@@ -140,7 +142,9 @@ const transactionColumns: ColumnDef<Transaction>[] = [
   {
     accessorKey: "symbol",
     cell: ({ row }) => <div className="capitalize">{row.original.symbol}</div>,
-    header: ({ column }) => <SortHeader column={column} name="Name" />,
+    header: ({ column }) => (
+      <SortHeader column={column} name="Name" descFirst={false} />
+    ),
   },
   {
     accessorKey: "value",
@@ -153,11 +157,19 @@ const transactionColumns: ColumnDef<Transaction>[] = [
   },
 ];
 
-function SortHeader<T>({ column, name }: { column: Column<T>; name: string }) {
+function SortHeader<T>({
+  column,
+  name,
+  descFirst = true,
+}: {
+  column: Column<T>;
+  name: string;
+  descFirst?: boolean;
+}) {
   return (
     <Button
       variant="ghost"
-      onClick={() => column.toggleSorting()}
+      onClick={() => sortColumn(column, descFirst)}
       className="flex gap-2"
     >
       {name}
@@ -166,10 +178,19 @@ function SortHeader<T>({ column, name }: { column: Column<T>; name: string }) {
   );
 }
 
+function sortColumn<T>(column: Column<T>, descFirst: boolean) {
+  // We need this so we can have different sort orders per column
+  const sort = column.getIsSorted();
+  if (!sort) column.toggleSorting(descFirst);
+  else if ((sort == "desc" && descFirst) || (sort == "asc" && !descFirst))
+    column.toggleSorting(!descFirst);
+  else column.clearSorting();
+}
+
 function SortArrows({ sort }: { sort: false | SortDirection }) {
   if (!sort) return <ArrowsUpDownIcon className="h-4 w-4" />;
-  else if (sort == "asc") return <ArrowDownIcon className="h-4 w-4" />;
-  else return <ArrowUpIcon className="h-4 w-4" />;
+  else if (sort == "asc") return <ArrowUpIcon className="h-4 w-4" />;
+  else return <ArrowDownIcon className="h-4 w-4" />;
 }
 
 export function TransactionTable({ values }: { values: Transaction[] }) {

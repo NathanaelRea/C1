@@ -160,7 +160,7 @@ export function TimeSeriesChart({ assets }: { assets: Asset[] }) {
     data == null || highlighted == null ? null : data[highlighted];
 
   return (
-    <div className="relative h-full w-full overflow-hidden">
+    <div className="relative h-full w-full touch-none overflow-hidden">
       <svg
         ref={chartRef}
         className="h-full w-full cursor-pointer stroke-black dark:stroke-white"
@@ -351,7 +351,7 @@ export function PieChart({
   const target = curData?.label ? targetPercent[curData?.label] ?? 0 : 0;
 
   return (
-    <div className="relative h-full w-full">
+    <div className="relative h-full w-full touch-none">
       <svg ref={chartRef} className="h-full w-full" />
       {curData != null && (
         <div className="pointer-events-none absolute left-0 top-0 flex h-full w-full items-center justify-center">

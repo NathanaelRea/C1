@@ -88,9 +88,9 @@ export function TimeSeriesChart({ assets }: { assets: Asset[] }) {
     };
   }, [data, dimensions]);
 
-  const [mousePosition, setMousePosition] = useState<[number, number] | null>([
-    0, 0,
-  ]);
+  const [pointerPosition, setPointerPosition] = useState<
+    [number, number] | null
+  >([0, 0]);
 
   // TODO fix
   const xScaleMemo = useMemo(
@@ -114,28 +114,29 @@ export function TimeSeriesChart({ assets }: { assets: Asset[] }) {
     [data, dimensions]
   );
 
-  const handleMouseMove = useCallback(
-    (event: React.MouseEvent) => {
+  const handlePointerMove = useCallback(
+    (event: React.PointerEvent) => {
       if (data == null || xScaleMemo == null) {
-        setHighlighted(null);
-        setMousePosition(null);
-        return;
+        return handlePointerLeave();
       }
 
-      const { offsetX, offsetY } = event.nativeEvent;
+      event.preventDefault();
+      const relativeX = event.clientX - dimensions.left;
+      const relativeY = event.clientY - dimensions.top;
+
       const bisect = d3.bisector((d: CoinbaseTransaction) => d.timestamp);
-      const xValue = xScaleMemo.invert(offsetX);
+      const xValue = xScaleMemo.invert(relativeX);
       const index = bisect.center(data, xValue, 0);
 
       setHighlighted(index);
-      setMousePosition([offsetX, offsetY]);
+      setPointerPosition([relativeX, relativeY]);
     },
-    [data, xScaleMemo]
+    [data, xScaleMemo, dimensions]
   );
 
-  const handleMouseLeave = () => {
+  const handlePointerLeave = () => {
     setHighlighted(null);
-    setMousePosition(null);
+    setPointerPosition(null);
   };
   const circleDiameter = 10;
 
@@ -165,7 +166,7 @@ export function TimeSeriesChart({ assets }: { assets: Asset[] }) {
         className="h-full w-full cursor-pointer stroke-black dark:stroke-white"
       />
       <AnimatePresence>
-        {data != null && mousePosition != null && curData != null && (
+        {data != null && pointerPosition != null && curData != null && (
           <>
             <motion.div
               className="absolute top-0 h-full bg-black dark:bg-white"
@@ -225,8 +226,8 @@ export function TimeSeriesChart({ assets }: { assets: Asset[] }) {
       </AnimatePresence>
       <div
         className="absolute left-0 top-0 h-full w-full"
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
+        onPointerMove={handlePointerMove}
+        onPointerLeave={handlePointerLeave}
       />
     </div>
   );
@@ -249,7 +250,7 @@ export function PieChart({
   const maxRadius = maxDiameter / 2;
   const radiusDelta = maxRadius - minRadius;
 
-  const data = assets
+  const pieData = assets
     .map((a) => {
       return {
         label: a.symbol,
@@ -263,14 +264,14 @@ export function PieChart({
     return acc;
   }, {} as Record<string, number>);
 
-  const handleMouseOver = useCallback(
-    function (_: MouseEvent, d: d3.PieArcDatum<Data>) {
+  const handlePointerEnter = useCallback(
+    function (_: PointerEvent, d: d3.PieArcDatum<Data>) {
       setHighlighted(d.index);
     },
     [setHighlighted]
   );
 
-  const handleMouseOut = useCallback(
+  const handlePointerLeave = useCallback(
     function () {
       setHighlighted(null);
     },
@@ -284,7 +285,7 @@ export function PieChart({
   }
 
   useEffect(() => {
-    if (chartRef.current == null || data == undefined) return;
+    if (chartRef.current == null || pieData == undefined) return;
 
     const svg = d3.select(chartRef.current);
 
@@ -321,32 +322,32 @@ export function PieChart({
 
     const paths = chart
       .selectAll("path")
-      .data(pie(data))
+      .data(pie(pieData))
       .enter()
       .append("path");
 
     paths
       .attr("d", arc)
       .attr("fill", (d, i) => getHighlightedColor(d, i))
-      .on("mouseenter", handleMouseOver)
-      .on("mouseleave", handleMouseOut);
+      .on("pointerenter", handlePointerEnter)
+      .on("pointerleave", handlePointerLeave);
 
     return () => {
       svg.selectAll("*").remove();
     };
   }, [
-    data,
+    pieData,
     highlighted,
     dimensions,
-    handleMouseOut,
-    handleMouseOver,
+    handlePointerLeave,
+    handlePointerEnter,
     innerRadius,
     minRadius,
     radiusDelta,
     targetPercent,
   ]);
 
-  const curData = highlighted == null ? null : data[highlighted];
+  const curData = highlighted == null ? null : pieData[highlighted];
   const target = curData?.label ? targetPercent[curData?.label] ?? 0 : 0;
 
   return (
@@ -373,14 +374,26 @@ export function PieChart({
 }
 
 function useBoundingRect(chartRef: RefObject<SVGSVGElement>) {
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const [dimensions, setDimensions] = useState({
+    width: 0,
+    height: 0,
+    left: 0,
+    top: 0,
+  });
 
   useEffect(() => {
     const chart = d3.select(chartRef.current);
+    const boundingRect = chart.node()?.getBoundingClientRect();
+    const width = boundingRect?.width ?? 0;
+    const height = boundingRect?.height ?? 0;
+    const left = boundingRect?.left ?? 0;
+    const top = boundingRect?.top ?? 0;
     const handleResize = () => {
       setDimensions({
-        width: chart.node()?.getBoundingClientRect().width ?? 0,
-        height: chart.node()?.getBoundingClientRect().height ?? 0,
+        width,
+        height,
+        left,
+        top,
       });
     };
     handleResize();

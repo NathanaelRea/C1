@@ -128,7 +128,7 @@ export function SliceTable({
   const allocationHandler = (n: number) => setAllocation(isNaN(n) ? 0 : n);
 
   return (
-    <div className="container mx-auto py-10">
+    <div className="py-8">
       <DataTable
         columns={sliceColumns}
         data={slices}
@@ -169,8 +169,9 @@ function SortHeader<T>({
   return (
     <Button
       variant="ghost"
+      size="sm"
       onClick={() => sortColumn(column, descFirst)}
-      className="flex gap-2"
+      className="flex gap-2 px-1"
     >
       {name}
       <SortArrows sort={column.getIsSorted()} />
@@ -195,7 +196,7 @@ function SortArrows({ sort }: { sort: false | SortDirection }) {
 
 export function TransactionTable({ values }: { values: Transaction[] }) {
   return (
-    <div className="container mx-auto py-10">
+    <div className="py-8">
       <DataTable columns={transactionColumns} data={values} />
     </div>
   );

@@ -11,10 +11,25 @@ datasource db {
     relationMode = "prisma"
 }
 
-model Example {
-    id        String   @id @default(cuid())
-    createdAt DateTime @default(now())
+model Coin {
+    id        String   @id
+    symbol    String
+    name      String   @unique
     updatedAt DateTime @updatedAt
+    Price     Price[]
+
+    @@index([updatedAt])
+}
+
+model Price {
+    coinId   String
+    date     DateTime
+    priceUSD Float
+    coin     Coin     @relation(fields: [coinId], references: [id])
+
+    @@id([coinId, date])
+    @@index([coinId])
+    @@index([date])
 }
 
 // Necessary for Next auth

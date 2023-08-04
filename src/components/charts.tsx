@@ -382,20 +382,17 @@ function useBoundingRect(chartRef: RefObject<SVGSVGElement>) {
   });
 
   useEffect(() => {
-    const chart = d3.select(chartRef.current);
-    const boundingRect = chart.node()?.getBoundingClientRect();
-    const width = boundingRect?.width ?? 0;
-    const height = boundingRect?.height ?? 0;
-    const left = boundingRect?.left ?? 0;
-    const top = boundingRect?.top ?? 0;
-    const handleResize = () => {
+    function handleResize() {
+      if (!chartRef) return;
+      const chart = d3.select(chartRef.current);
+      const boundingRect = chart.node()?.getBoundingClientRect();
       setDimensions({
-        width,
-        height,
-        left,
-        top,
+        width: boundingRect?.width ?? 0,
+        height: boundingRect?.height ?? 0,
+        left: boundingRect?.left ?? 0,
+        top: boundingRect?.top ?? 0,
       });
-    };
+    }
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);

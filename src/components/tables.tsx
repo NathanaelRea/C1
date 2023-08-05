@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { type Asset, type Slice, type Transaction } from ".";
 import { Gain, Return } from "~/lib/utils";
 import {
   type ColumnDef,
@@ -15,6 +14,11 @@ import {
   ArrowUpIcon,
   ArrowsUpDownIcon,
 } from "@heroicons/react/24/solid";
+import {
+  type Transaction,
+  type Slice,
+  type BaseSliceData,
+} from "~/utils/shared-schema";
 
 const metaSchema = z.object({
   allocationHandler: z.function().args(z.number()).returns(z.void()),
@@ -89,15 +93,15 @@ const sliceColumns: ColumnDef<Slice>[] = [
 ];
 
 export function SliceTable({
-  assets,
+  baseSliceData,
   sumTotalValue,
 }: {
-  assets: Asset[];
+  baseSliceData: BaseSliceData[];
   sumTotalValue: number;
 }) {
   const [allocation, setAllocation] = useState(250);
 
-  const sumAllocation = assets.reduce(
+  const sumAllocation = baseSliceData.reduce(
     (acc, val) =>
       acc +
       Math.max(
@@ -107,7 +111,7 @@ export function SliceTable({
     0
   );
 
-  const slices: Slice[] = assets
+  const slices: Slice[] = baseSliceData
     .map((a) => {
       const thisAllocation = Math.max(
         0,

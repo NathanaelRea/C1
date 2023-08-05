@@ -4,73 +4,24 @@ import { SliceTable, TransactionTable } from "./tables";
 import { Money, ColorMoney, ColorPercent } from "./money";
 import { PieChart, TimeSeriesChart } from "./charts";
 import LoadingDots from "./LoadingDots";
-import { useTransactions } from "./useTransactions";
 import Coinbase from "../assets/coinbase.favicon.ico";
 import Image from "next/image";
-import { useCalculate } from "~/hooks/useCalculate";
 import { Gain, Return } from "~/lib/utils";
-
-export interface TimeSeriesData {
-  date: Date;
-  value: number;
-}
-
-export interface PortfolioItem {
-  symbol: string;
-  name: string;
-  coinbaseTransactions: CoinbaseTransaction[];
-  percentTarget: number;
-  staking?: number;
-}
-
-export interface CoinbaseTransaction {
-  timestamp: Date;
-  value: number;
-}
-
-export interface Asset {
-  symbol: string;
-  name: string;
-  history: CoinbaseTransaction[];
-  totalSpent: number;
-  totalValue: number;
-  percentTarget: number;
-}
-
-export interface Slice {
-  symbol: string;
-  totalValue: number;
-  gain: number;
-  return: number;
-  targetPercent: number;
-  actualPercent: number;
-  nextBuy: number;
-}
-
-export interface Transaction {
-  date: Date;
-  value: number;
-  symbol: string;
-}
+import { api } from "~/utils/api";
+import { handleImport } from "./calc";
 
 export default function C1() {
-  const { transactions, handleImport } = useTransactions();
-
-  const { assets, sumTotalCost, sumTotalValue, isLoading } =
-    useCalculate(transactions);
+  const { data, isLoading } = api.coins.getData.useQuery();
+  const baseSliceData = data?.baseSliceData;
+  const timeSeriesData = data?.timeSeriesData;
+  const filteredTransactions = data?.filteredTransactions ?? [];
+  const sumTotalCost = data?.sumTotalCost ?? 0;
+  const sumTotalValue = data?.sumTotalValue ?? 0;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const handleUploadButtonClick = () => {
     fileInputRef.current?.click();
   };
-
-  const filteredTransactions = transactions.map((e) => {
-    return {
-      date: e.timeStamp,
-      symbol: e.coinId,
-      value: e.quantity,
-    };
-  });
 
   return (
     <div className="flex w-full justify-center">
@@ -127,21 +78,31 @@ export default function C1() {
           />
         </div>
         <div className="aspect-square self-center rounded-md bg-slate-100 p-2 dark:bg-slate-900">
-          {isLoading ? (
+          {isLoading || !baseSliceData ? (
             <LoadingDots />
           ) : (
-            <PieChart assets={assets} sumTotalValue={sumTotalValue} />
+            <PieChart
+              baseSliceData={baseSliceData}
+              sumTotalValue={sumTotalValue}
+            />
           )}
         </div>
         <div className="col-span-2 rounded-md bg-slate-100 p-2 text-xl font-bold dark:bg-slate-900">
-          {isLoading ? <LoadingDots /> : <TimeSeriesChart assets={assets} />}
+          {isLoading || !timeSeriesData ? (
+            <LoadingDots />
+          ) : (
+            <TimeSeriesChart timeSeriesData={timeSeriesData} />
+          )}
         </div>
         <div className="col-span-2 sm:col-span-3">
           <h3 className="text-xl font-bold">Slices</h3>
-          {isLoading ? (
+          {isLoading || !baseSliceData ? (
             <LoadingDots />
           ) : (
-            <SliceTable assets={assets} sumTotalValue={sumTotalValue} />
+            <SliceTable
+              baseSliceData={baseSliceData}
+              sumTotalValue={sumTotalValue}
+            />
           )}
         </div>
         <div className="col-span-2 sm:col-span-3">

@@ -1,4 +1,3 @@
-import axios from "axios";
 import { z } from "zod";
 
 const dateNumberSchema = z.array(
@@ -7,39 +6,110 @@ const dateNumberSchema = z.array(
 const dateNulllableNumberSchema = z.array(
   z.tuple([z.number().transform((v) => new Date(v)), z.number().nullable()])
 );
-const marketChartSchema = z.object({
+export const marketChartSchema = z.object({
   prices: dateNumberSchema,
   market_caps: dateNulllableNumberSchema, // No clue why only this nullable?
   total_volumes: dateNumberSchema,
 });
-type MarketChart = z.infer<typeof marketChartSchema>;
-const coinListSchema = z.array(
+export type MarketChart = z.infer<typeof marketChartSchema>;
+export const coinListSchema = z.array(
   z.object({
     id: z.string(),
     symbol: z.string(),
     name: z.string(),
   })
 );
-type CoinList = z.infer<typeof coinListSchema>;
+export type CoinList = z.infer<typeof coinListSchema>;
 
-export const getCoinList = async (): Promise<CoinList> => {
-  const res = await axios.get("https://api.coingecko.com/api/v3/coins/list");
-  const parsed = coinListSchema.safeParse(res.data);
-  if (!parsed.success) {
-    return [];
-  }
-  return parsed.data;
-};
+const coinbaseTransactionType = z.enum([
+  "Buy",
+  "Sell",
+  "Send",
+  "Convert",
+  "Receive",
+  "Rewards Income",
+  "Advanced Trade Buy",
+  "Advanced Trade Sell",
+]);
+export const coinbaseSchema = z.object({
+  timeStamp: z.coerce.date(),
+  transactionType: coinbaseTransactionType,
+  asset: z.string(),
+  quantityTransacted: z.coerce.number(),
+  spotPriceCurrency: z.string(),
+  spotPriceAtTransaction: z.coerce.number(),
+  subtotal: z.coerce.number(),
+  total: z.coerce.number(),
+  feesPlusSpread: z.coerce.number(),
+  notes: z.string(),
+});
+export type CoinbaseTransactionType = z.infer<typeof coinbaseTransactionType>;
 
-export const getMarketHistory = async (
-  coinId: string
-): Promise<MarketChart> => {
-  const res = await axios.get(
-    `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=max`
-  );
-  const parsed = marketChartSchema.safeParse(res.data);
-  if (!parsed.success) {
-    return { prices: [], market_caps: [], total_volumes: [] };
-  }
-  return parsed.data;
-};
+export const storageTransactionType = z.enum([
+  "Buy",
+  "Sell",
+  "Send",
+  "Receive",
+  "Stake",
+  "Other",
+]);
+export const storageTransaction = z.object({
+  timeStamp: z.coerce.date(),
+  type: storageTransactionType,
+  coinId: z.string(),
+  quantity: z.number(),
+  totalPrice: z.number(),
+});
+export type StorageTransactionType = z.infer<typeof storageTransactionType>;
+export type StorageTransaction = z.infer<typeof storageTransaction>;
+
+export interface TimeSeriesData {
+  date: Date;
+  value: number;
+}
+
+export interface PortfolioItem {
+  symbol: string;
+  name: string;
+  coinbaseTransactions: CoinbaseTransaction[];
+  percentTarget: number;
+  staking?: number;
+}
+
+export interface CoinbaseTransaction {
+  timestamp: Date;
+  value: number;
+}
+
+export interface Asset {
+  symbol: string;
+  name: string;
+  history: CoinbaseTransaction[];
+  totalSpent: number;
+  totalValue: number;
+  percentTarget: number;
+}
+
+export interface Slice {
+  symbol: string;
+  totalValue: number;
+  gain: number;
+  return: number;
+  targetPercent: number;
+  actualPercent: number;
+  nextBuy: number;
+}
+
+export interface Transaction {
+  date: Date;
+  value: number;
+  symbol: string;
+}
+
+const baseSliceData = z.object({
+  symbol: z.string(),
+  totalValue: z.number(),
+  totalSpent: z.number(),
+  percentTarget: z.number(),
+});
+export type BaseSliceData = z.infer<typeof baseSliceData>;

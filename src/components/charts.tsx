@@ -13,62 +13,39 @@ import {
   ArrowsPointingInIcon,
   ArrowsPointingOutIcon,
 } from "@heroicons/react/24/solid";
-import { type CoinbaseTransaction, type Asset } from ".";
-import { addDays } from "date-fns";
+import {
+  type BaseSliceData,
+  type CoinbaseTransaction,
+} from "~/utils/shared-schema";
 
 interface Data {
   label: string;
   value: number;
 }
 
-type TargetPercent = Record<string, number>;
-
-function calculateTimeSeriesData(assetHistory: Asset[]) {
-  const maxHistoryLength = assetHistory.reduce(
-    (acc, val) => Math.max(acc, val.history.length),
-    0
-  );
-  const timeSeries = [] as CoinbaseTransaction[];
-  let timestamp;
-  for (let i = 0; i < maxHistoryLength; i += 1) {
-    let value = 0;
-    timestamp = undefined;
-    for (const asset of assetHistory) {
-      const ts = asset.history[asset.history.length - i - 1];
-      if (!ts) continue;
-      value += ts.value;
-      timestamp = ts.timestamp;
-    }
-    if (timestamp) timeSeries.push({ timestamp, value });
-  }
-  if (timestamp)
-    timeSeries.push({
-      timestamp: addDays(timestamp, -1),
-      value: 0,
-    });
-  return timeSeries.reverse();
-}
-
-export function TimeSeriesChart({ assets }: { assets: Asset[] }) {
-  const data = calculateTimeSeriesData(assets);
+export function TimeSeriesChart({
+  timeSeriesData,
+}: {
+  timeSeriesData: CoinbaseTransaction[];
+}) {
   const chartRef = useRef<SVGSVGElement>(null);
   const [highlighted, setHighlighted] = useState<number | null>(null);
   const { dimensions } = useBoundingRect(chartRef);
   const margin = 10;
 
   useEffect(() => {
-    if (chartRef.current == null || data == undefined) return;
+    if (chartRef.current == null || timeSeriesData == undefined) return;
 
     const chart = d3.select(chartRef.current);
 
     const xScale = d3
       .scaleTime()
-      .domain(d3.extent(data, (d) => d.timestamp) as [Date, Date])
+      .domain(d3.extent(timeSeriesData, (d) => d.timestamp) as [Date, Date])
       .range([0, dimensions.width]);
 
     const yScale = d3
       .scaleLinear()
-      .domain([0, d3.max(data, (d) => d.value) ?? 0])
+      .domain([0, d3.max(timeSeriesData, (d) => d.value) ?? 0])
       .range([dimensions.height - margin, margin]);
 
     const line = d3
@@ -78,7 +55,7 @@ export function TimeSeriesChart({ assets }: { assets: Asset[] }) {
 
     chart
       .append("path")
-      .datum(data)
+      .datum(timeSeriesData)
       .attr("fill", "none")
       .attr("stroke-width", 2)
       .attr("d", line);
@@ -86,7 +63,7 @@ export function TimeSeriesChart({ assets }: { assets: Asset[] }) {
     return () => {
       chart.selectAll("*").remove();
     };
-  }, [data, dimensions]);
+  }, [timeSeriesData, dimensions]);
 
   const [pointerPosition, setPointerPosition] = useState<
     [number, number] | null
@@ -95,28 +72,30 @@ export function TimeSeriesChart({ assets }: { assets: Asset[] }) {
   // TODO fix
   const xScaleMemo = useMemo(
     () =>
-      data == null
+      timeSeriesData == null
         ? null
         : d3
             .scaleTime()
-            .domain(d3.extent(data, (d) => d.timestamp) as [Date, Date])
+            .domain(
+              d3.extent(timeSeriesData, (d) => d.timestamp) as [Date, Date]
+            )
             .range([0, dimensions.width]),
-    [data, dimensions]
+    [timeSeriesData, dimensions]
   );
   const yScaleMemo = useMemo(
     () =>
-      data == null
+      timeSeriesData == null
         ? null
         : d3
             .scaleLinear()
-            .domain([0, d3.max(data, (d) => d.value) ?? 0])
+            .domain([0, d3.max(timeSeriesData, (d) => d.value) ?? 0])
             .range([dimensions.height - margin, margin]),
-    [data, dimensions]
+    [timeSeriesData, dimensions]
   );
 
   const handlePointerMove = useCallback(
     (event: React.PointerEvent) => {
-      if (data == null || xScaleMemo == null) {
+      if (timeSeriesData == null || xScaleMemo == null) {
         return handlePointerLeave();
       }
 
@@ -126,12 +105,12 @@ export function TimeSeriesChart({ assets }: { assets: Asset[] }) {
 
       const bisect = d3.bisector((d: CoinbaseTransaction) => d.timestamp);
       const xValue = xScaleMemo.invert(relativeX);
-      const index = bisect.center(data, xValue, 0);
+      const index = bisect.center(timeSeriesData, xValue, 0);
 
       setHighlighted(index);
       setPointerPosition([relativeX, relativeY]);
     },
-    [data, xScaleMemo, dimensions]
+    [timeSeriesData, xScaleMemo, dimensions]
   );
 
   const handlePointerLeave = () => {
@@ -152,12 +131,14 @@ export function TimeSeriesChart({ assets }: { assets: Asset[] }) {
     return Math.max(Math.abs(xScale(time1) - xScale(time2)), base);
   }
   const rectWidth = useMemo(
-    () => getRectWidth(data, xScaleMemo),
-    [data, xScaleMemo]
+    () => getRectWidth(timeSeriesData, xScaleMemo),
+    [timeSeriesData, xScaleMemo]
   );
 
   const curData =
-    data == null || highlighted == null ? null : data[highlighted];
+    timeSeriesData == null || highlighted == null
+      ? null
+      : timeSeriesData[highlighted];
 
   return (
     <div className="relative h-full w-full touch-none overflow-hidden">
@@ -166,63 +147,65 @@ export function TimeSeriesChart({ assets }: { assets: Asset[] }) {
         className="h-full w-full cursor-pointer stroke-black dark:stroke-white"
       />
       <AnimatePresence>
-        {data != null && pointerPosition != null && curData != null && (
-          <>
-            <motion.div
-              className="absolute top-0 h-full bg-black dark:bg-white"
-              style={{ width: rectWidth }}
-              initial={{ opacity: 0 }}
-              animate={{
-                opacity: 0.25,
-                left: xScaleMemo
-                  ? xScaleMemo(curData.timestamp) - rectWidth / 2
-                  : 0,
-              }}
-              exit={{
-                opacity: 0,
-                transition: { ease: "easeOut" },
-              }}
-              transition={{
-                duration: 0,
-              }}
-            />
-            <motion.div
-              className="absolute z-10 rounded-full bg-black dark:bg-white"
-              style={{ width: circleDiameter, height: circleDiameter }}
-              initial={{ opacity: 0 }}
-              animate={{
-                opacity: 1,
-                left: xScaleMemo
-                  ? xScaleMemo(curData.timestamp) - circleDiameter / 2
-                  : 0,
-                top: yScaleMemo
-                  ? yScaleMemo(curData.value) - circleDiameter / 2
-                  : 0,
-              }}
-              exit={{
-                opacity: 0,
-              }}
-              transition={{ duration: 0 }}
-            />
-            <motion.div
-              className="absolute left-0 top-0"
-              initial={{ opacity: 0, y: "-100%" }}
-              animate={{
-                opacity: 1,
-                y: 0,
-              }}
-              exit={{
-                opacity: 0,
-                y: "-100%",
-                transition: { ease: "easeIn" },
-              }}
-              transition={{ ease: "easeOut" }}
-            >
-              <p>{curData.timestamp.toLocaleDateString()}</p>
-              <p>{currency2.format(curData.value)}</p>
-            </motion.div>
-          </>
-        )}
+        {timeSeriesData != null &&
+          pointerPosition != null &&
+          curData != null && (
+            <>
+              <motion.div
+                className="absolute top-0 h-full bg-black dark:bg-white"
+                style={{ width: rectWidth }}
+                initial={{ opacity: 0 }}
+                animate={{
+                  opacity: 0.25,
+                  left: xScaleMemo
+                    ? xScaleMemo(curData.timestamp) - rectWidth / 2
+                    : 0,
+                }}
+                exit={{
+                  opacity: 0,
+                  transition: { ease: "easeOut" },
+                }}
+                transition={{
+                  duration: 0,
+                }}
+              />
+              <motion.div
+                className="absolute z-10 rounded-full bg-black dark:bg-white"
+                style={{ width: circleDiameter, height: circleDiameter }}
+                initial={{ opacity: 0 }}
+                animate={{
+                  opacity: 1,
+                  left: xScaleMemo
+                    ? xScaleMemo(curData.timestamp) - circleDiameter / 2
+                    : 0,
+                  top: yScaleMemo
+                    ? yScaleMemo(curData.value) - circleDiameter / 2
+                    : 0,
+                }}
+                exit={{
+                  opacity: 0,
+                }}
+                transition={{ duration: 0 }}
+              />
+              <motion.div
+                className="absolute left-0 top-0"
+                initial={{ opacity: 0, y: "-100%" }}
+                animate={{
+                  opacity: 1,
+                  y: 0,
+                }}
+                exit={{
+                  opacity: 0,
+                  y: "-100%",
+                  transition: { ease: "easeIn" },
+                }}
+                transition={{ ease: "easeOut" }}
+              >
+                <p>{curData.timestamp.toLocaleDateString()}</p>
+                <p>{currency2.format(curData.value)}</p>
+              </motion.div>
+            </>
+          )}
       </AnimatePresence>
       <div
         className="absolute left-0 top-0 h-full w-full"
@@ -234,12 +217,28 @@ export function TimeSeriesChart({ assets }: { assets: Asset[] }) {
 }
 
 export function PieChart({
-  assets,
+  baseSliceData,
   sumTotalValue,
 }: {
-  assets: Asset[];
+  baseSliceData: BaseSliceData[];
   sumTotalValue: number;
 }) {
+  const pieData = baseSliceData
+    .map((a) => {
+      return {
+        label: a.symbol,
+        value: a.totalValue / sumTotalValue,
+      };
+    })
+    .sort((a, b) => b.value - a.value);
+  const targetPercent = baseSliceData.reduce(
+    (acc: Record<string, number>, val) => {
+      acc[val.symbol] = val.percentTarget;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
+
   const chartRef = useRef<SVGSVGElement>(null);
   const [highlighted, setHighlighted] = useState<number | null>(null);
   const { dimensions } = useBoundingRect(chartRef);
@@ -249,20 +248,6 @@ export function PieChart({
   const minRadius = maxDiameter / 3;
   const maxRadius = maxDiameter / 2;
   const radiusDelta = maxRadius - minRadius;
-
-  const pieData = assets
-    .map((a) => {
-      return {
-        label: a.symbol,
-        value: a.totalValue / sumTotalValue,
-      };
-    })
-    .sort((a, b) => b.value - a.value);
-
-  const targetPercent = assets.reduce((acc: TargetPercent, val) => {
-    acc[val.symbol] = val.percentTarget;
-    return acc;
-  }, {} as Record<string, number>);
 
   const handlePointerEnter = useCallback(
     function (_: PointerEvent, d: d3.PieArcDatum<Data>) {
